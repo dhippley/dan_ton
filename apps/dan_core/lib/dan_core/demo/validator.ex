@@ -17,14 +17,15 @@ defmodule DanCore.Demo.Validator do
   @required_fields ~w(name steps)
 
   @step_schemas %{
-    "goto" => [:url],
-    "click" => [:selector],
-    "fill" => [:selector, :value],
-    "assert_text" => [:text],
-    "wait" => [:duration],
-    "take_screenshot" => [:filename],
+    # For steps with simple string/int params, we mark as [] since validation happens differently
+    "goto" => [],
+    "click" => [],
+    "fill" => [],
+    "assert_text" => [],
+    "wait" => [],
+    "take_screenshot" => [],
     "reload" => [],
-    "narrate" => [:message],
+    "narrate" => [],
     "pause" => []
   }
 
@@ -120,70 +121,58 @@ defmodule DanCore.Demo.Validator do
   end
 
   defp validate_step_params(step, type, index, prefix) do
-    required_params = Map.get(@step_schemas, type, [])
     errors = []
 
-    # Check required parameters
-    errors =
-      Enum.reduce(required_params, errors, fn param, acc ->
-        value = Map.get(step, param)
+    # Get params - could be direct on step or in a :params field (after parsing)
+    params =
+      case Map.get(step, :params) do
+        nil -> step
+        params -> params
+      end
 
-        if Map.has_key?(step, param) and value != nil and
-             String.trim(to_string(value)) != "" do
-          acc
-        else
-          ["#{prefix} #{index}: Missing required parameter '#{param}' for type '#{type}'" | acc]
-        end
-      end)
-
-    # Validate specific parameter formats
-    errors = errors ++ validate_param_formats(step, type, index, prefix)
-
-    errors
+    # Validate specific parameter formats (this checks for required params too)
+    errors ++ validate_param_formats(params, type, index, prefix)
   end
 
-  defp validate_param_formats(step, type, index, prefix) do
+  defp validate_param_formats(params, type, index, prefix) do
     errors = []
 
-    # Validate URL format for goto steps
-    errors =
-      if type == "goto" do
-        case Map.get(step, :url) do
+    # Validate based on step type
+    case type do
+      "goto" ->
+        case params do
           url when is_binary(url) ->
-            if valid_url?(url) do
+            # Allow env variables, relative paths, and full URLs
+            if String.contains?(url, "${") or String.starts_with?(url, "/") or valid_url?(url) do
               errors
             else
               ["#{prefix} #{index}: Invalid URL format: #{url}" | errors]
             end
 
           _ ->
-            errors
+            ["#{prefix} #{index}: Missing or invalid URL parameter for goto" | errors]
         end
-      else
-        errors
-      end
 
-    # Validate duration for wait steps
-    errors =
-      if type == "wait" do
-        case Map.get(step, :duration) do
+      "wait" ->
+        case params do
           duration when is_integer(duration) and duration > 0 ->
             errors
 
           _ ->
-            [
-              "#{prefix} #{index}: Invalid duration. Must be positive integer (milliseconds)"
-              | errors
-            ]
+            ["#{prefix} #{index}: Invalid duration. Must be positive integer (milliseconds)" | errors]
         end
-      else
-        errors
-      end
 
-    # Validate filename for take_screenshot
-    errors =
-      if type == "take_screenshot" do
-        case Map.get(step, :filename) do
+      "assert_text" ->
+        case params do
+          text when is_binary(text) and byte_size(text) > 0 ->
+            errors
+
+          _ ->
+            ["#{prefix} #{index}: Missing or invalid text parameter for assert_text" | errors]
+        end
+
+      "take_screenshot" ->
+        case params do
           filename when is_binary(filename) ->
             if valid_filename?(filename) do
               errors
@@ -191,14 +180,67 @@ defmodule DanCore.Demo.Validator do
               ["#{prefix} #{index}: Invalid filename: #{filename}" | errors]
             end
 
-          _ ->
+          true ->
+            # Special case: take_screenshot: true means auto-generate filename
             errors
-        end
-      else
-        errors
-      end
 
-    errors
+          _ ->
+            ["#{prefix} #{index}: Missing or invalid filename parameter for take_screenshot" | errors]
+        end
+
+      "click" ->
+        case params do
+          selector when is_map(selector) ->
+            # click: { selector: "...", role: "...", text: "..." }
+            errors
+
+          _ ->
+            ["#{prefix} #{index}: Missing or invalid selector parameter for click" | errors]
+        end
+
+      "fill" ->
+        case params do
+          fill_params when is_map(fill_params) ->
+            # fill: { selector: "...", value: "..." } or { field: "...", value: "..." }
+            selector = Map.get(fill_params, "selector") || Map.get(fill_params, :selector) ||
+                      Map.get(fill_params, "field") || Map.get(fill_params, :field)
+            value = Map.get(fill_params, "value") || Map.get(fill_params, :value)
+
+            cond do
+              selector == nil or (is_binary(selector) and String.trim(selector) == "") ->
+                ["#{prefix} #{index}: Missing selector or field for fill" | errors]
+
+              value == nil ->
+                ["#{prefix} #{index}: Missing value for fill" | errors]
+
+              true ->
+                errors
+            end
+
+          _ ->
+            ["#{prefix} #{index}: Missing or invalid parameters for fill" | errors]
+        end
+
+      "narrate" ->
+        case params do
+          message when is_binary(message) and byte_size(message) > 0 ->
+            errors
+
+          _ ->
+            ["#{prefix} #{index}: Missing or invalid message parameter for narrate" | errors]
+        end
+
+      "reload" ->
+        # reload doesn't need parameters
+        errors
+
+      "pause" ->
+        # pause doesn't need parameters
+        errors
+
+      _ ->
+        errors
+    end
   end
 
   defp valid_url?(url) when is_binary(url) do

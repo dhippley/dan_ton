@@ -124,40 +124,20 @@ defmodule Mix.Tasks.Dan.Demo do
   end
 
   defp run_steps(opts) do
+    # Subscribe to demo events
+    Phoenix.PubSub.subscribe(DanCore.PubSub, "demo:runner")
+
+    # Trigger first step
+    DanCore.Demo.Runner.next_step()
+
+    # Listen to events
+    monitor_demo(opts)
+  end
+
+  defp monitor_demo(opts) do
     state = DanCore.Demo.Runner.get_state()
 
     case state.status do
-      :idle ->
-        IO.puts("\n▶️  Starting demo...\n")
-        DanCore.Demo.Runner.start()
-        Process.sleep(500)
-        run_steps(opts)
-
-      :running ->
-        current = state.current_step + 1
-        total = length(state.scenario.steps)
-        step = Enum.at(state.scenario.steps, state.current_step)
-
-        IO.puts("Step #{current}/#{total}: #{step.type}")
-
-        if step_text = Map.get(step, :text) do
-          IO.puts("  → #{step_text}")
-        end
-
-        if Keyword.get(opts, :narrate) && step_text do
-          DanCore.Speaker.speak(step_text)
-        end
-
-        if Keyword.get(opts, :step) do
-          IO.gets("  Press Enter for next step...")
-        else
-          Process.sleep(1000)
-        end
-
-        DanCore.Demo.Runner.next_step()
-        Process.sleep(500)
-        run_steps(opts)
-
       :completed ->
         IO.puts("\n✅ Demo completed!\n")
         :ok
@@ -166,9 +146,55 @@ defmodule Mix.Tasks.Dan.Demo do
         IO.puts("\n❌ Demo failed\n")
         exit({:shutdown, 1})
 
+      :running ->
+        # Wait for next event
+        receive do
+          {:step_executed, event} ->
+            current = event.step_index + 1
+            total = event.total_steps
+            step = event.step
+
+            IO.puts("Step #{current}/#{total}: #{step.type}")
+
+            # Handle narration
+            if step.type == "narrate" && step.params do
+              IO.puts("  → #{step.params}")
+
+              if Keyword.get(opts, :narrate) do
+                DanCore.Speaker.speak(step.params)
+              end
+            end
+
+            # Interactive mode
+            if Keyword.get(opts, :step) do
+              IO.gets("  Press Enter for next step...")
+            else
+              Process.sleep(800)
+            end
+
+            # Trigger next step
+            DanCore.Demo.Runner.next_step()
+            monitor_demo(opts)
+
+          {:step_failed, event} ->
+            IO.puts("\n❌ Step #{event.step_index + 1} failed: #{inspect(event.error)}\n")
+            exit({:shutdown, 1})
+
+          {:demo_completed, _} ->
+            IO.puts("\n✅ Demo completed!\n")
+            :ok
+
+          _other ->
+            monitor_demo(opts)
+        after
+          30_000 ->
+            IO.puts("\n⏱️  Demo timed out\n")
+            exit({:shutdown, 1})
+        end
+
       _ ->
-        IO.puts("\n⚠️  Demo in unexpected state: #{state.status}\n")
-        exit({:shutdown, 1})
+        Process.sleep(500)
+        monitor_demo(opts)
     end
   end
 
