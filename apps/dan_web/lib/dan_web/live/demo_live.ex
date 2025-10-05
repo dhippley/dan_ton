@@ -14,6 +14,8 @@ defmodule DanWeb.DemoLive do
   require Logger
 
   alias DanCore.Demo.Runner
+  alias DanCore.QA.Engine
+  alias DanCore.Speaker
   alias Phoenix.PubSub
 
   @impl true
@@ -21,6 +23,8 @@ defmodule DanWeb.DemoLive do
     if connected?(socket) do
       # Subscribe to demo events
       PubSub.subscribe(DanCore.PubSub, Runner.pubsub_topic())
+      # Subscribe to speaker events
+      PubSub.subscribe(DanCore.PubSub, Speaker.pubsub_topic())
     end
 
     # Get available demo scripts
@@ -29,6 +33,9 @@ defmodule DanWeb.DemoLive do
     # Get current demo state
     demo_state = Runner.get_state()
 
+    # Get speaker state
+    speaker_state = Speaker.get_state()
+
     socket =
       socket
       |> assign(:demo_scripts, demo_scripts)
@@ -36,6 +43,12 @@ defmodule DanWeb.DemoLive do
       |> assign(:demo_state, demo_state)
       |> assign(:logs, [])
       |> assign(:show_help, false)
+      |> assign(:show_qa, false)
+      |> assign(:qa_question, "")
+      |> assign(:qa_answer, nil)
+      |> assign(:qa_loading, false)
+      |> assign(:speaker_state, speaker_state)
+      |> assign(:tts_available, DanCore.TTS.available?())
 
     {:ok, socket}
   end
@@ -111,6 +124,54 @@ defmodule DanWeb.DemoLive do
     {:noreply, assign(socket, :selected_script, path)}
   end
 
+  @impl true
+  def handle_event("toggle_qa", _params, socket) do
+    {:noreply, assign(socket, :show_qa, !socket.assigns.show_qa)}
+  end
+
+  @impl true
+  def handle_event("ask_question", %{"question" => question}, socket) do
+    if String.trim(question) == "" do
+      {:noreply, socket}
+    else
+      # Start async task to query the Q&A engine
+      socket =
+        socket
+        |> assign(:qa_loading, true)
+        |> assign(:qa_question, question)
+
+      Task.async(fn -> Engine.ask(question) end)
+
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("clear_qa", _params, socket) do
+    socket =
+      socket
+      |> assign(:qa_question, "")
+      |> assign(:qa_answer, nil)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("speak_answer", _params, socket) do
+    if socket.assigns.qa_answer do
+      Speaker.speak(socket.assigns.qa_answer.answer)
+      {:noreply, add_log(socket, "info", "Speaking answer...")}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("stop_speaking", _params, socket) do
+    Speaker.stop()
+    {:noreply, add_log(socket, "info", "Speech stopped")}
+  end
+
   # PubSub event handlers
 
   @impl true
@@ -184,6 +245,75 @@ defmodule DanWeb.DemoLive do
       |> add_log("success", "Recovery completed (#{payload.steps} steps)")
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({ref, result}, socket) when is_reference(ref) do
+    # Handle async task result (Q&A response)
+    Process.demonitor(ref, [:flush])
+
+    case result do
+      {:ok, response} ->
+        socket =
+          socket
+          |> assign(:qa_loading, false)
+          |> assign(:qa_answer, response)
+          |> add_log("success", "Q&A: Answered question")
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        socket =
+          socket
+          |> assign(:qa_loading, false)
+          |> add_log("error", "Q&A failed: #{inspect(reason)}")
+
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, socket) do
+    # Task cleanup
+    {:noreply, socket}
+  end
+
+  # Speaker event handlers
+
+  @impl true
+  def handle_info({:started, payload}, socket) do
+    speaker_state = Speaker.get_state()
+
+    socket =
+      socket
+      |> assign(:speaker_state, speaker_state)
+      |> add_log("info", "Speaking: #{String.slice(payload.text, 0..50)}...")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:completed, _payload}, socket) do
+    speaker_state = Speaker.get_state()
+
+    socket =
+      socket
+      |> assign(:speaker_state, speaker_state)
+      |> add_log("success", "Speech completed")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:stopped, _payload}, socket) do
+    speaker_state = Speaker.get_state()
+    {:noreply, assign(socket, :speaker_state, speaker_state)}
+  end
+
+  @impl true
+  def handle_info({:queue_cleared, _payload}, socket) do
+    speaker_state = Speaker.get_state()
+    {:noreply, assign(socket, :speaker_state, speaker_state)}
   end
 
   @impl true

@@ -37,7 +37,9 @@ defmodule DanCore.MixProject do
       {:swoosh, "~> 1.16"},
       {:dns_cluster, "~> 0.2.0"},
       {:yaml_elixir, "~> 2.9"},
-      {:phoenix_pubsub, "~> 2.1"}
+      {:phoenix_pubsub, "~> 2.1"},
+      {:exqlite, "~> 0.23"},
+      {:earmark, "~> 1.4"}
     ]
   end
 

@@ -13,9 +13,9 @@ defmodule DanCore.Application do
       {DNSCluster, query: Application.get_env(:dan_core, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: DanCore.PubSub},
       # Demo Runner for Phase 2
-      DanCore.Demo.Runner
-      # Future: TTS Speaker for Phase 5
-      # {DanCore.Speaker, []}
+      DanCore.Demo.Runner,
+      # TTS Speaker for Phase 5
+      DanCore.Speaker
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

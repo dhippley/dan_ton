@@ -10,6 +10,16 @@
       <div class={"badge badge-lg " <> status_badge_color(@demo_state.status)}>
         <%= status_text(@demo_state.status) %>
       </div>
+      
+      <%= if @speaker_state.speaking do %>
+        <button class="btn btn-circle btn-error btn-sm" phx-click="stop_speaking" title="Stop Speaking">
+          <.icon name="hero-speaker-x-mark" class="w-5 h-5" />
+        </button>
+      <% end %>
+      
+      <button class="btn btn-circle btn-ghost" phx-click="toggle_qa" title="Ask Question (Cmd+/)">
+        <.icon name="hero-chat-bubble-left-right" class="w-6 h-6" />
+      </button>
       <button class="btn btn-circle btn-ghost" phx-click="toggle_help">
         <.icon name="hero-question-mark-circle" class="w-6 h-6" />
       </button>
@@ -233,10 +243,122 @@
             <span>Toggle Help</span>
             <kbd class="kbd">?</kbd>
           </div>
+          <div class="flex justify-between items-center">
+            <span>Ask Question</span>
+            <kbd class="kbd">Cmd</kbd> + <kbd class="kbd">/</kbd>
+          </div>
+          <%= if @tts_available do %>
+            <div class="flex justify-between items-center">
+              <span>Speak Answer</span>
+              <kbd class="kbd">S</kbd>
+            </div>
+          <% end %>
         </div>
 
         <div class="modal-action">
           <button class="btn" phx-click="toggle_help">Close</button>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Q&A Modal -->
+  <%= if @show_qa do %>
+    <div class="modal modal-open">
+      <div class="modal-box max-w-3xl">
+        <h3 class="font-bold text-lg mb-4">
+          <.icon name="hero-chat-bubble-left-right" class="w-6 h-6 inline mr-2" />
+          Ask a Question
+        </h3>
+        
+        <form phx-submit="ask_question" class="space-y-4">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">What would you like to know?</span>
+            </label>
+            <textarea 
+              name="question"
+              class="textarea textarea-bordered h-24"
+              placeholder="Ask about the demo system, documentation, or any feature..."
+              autofocus
+              value={@qa_question}
+            ></textarea>
+          </div>
+
+          <div class="flex gap-2">
+            <button 
+              type="submit" 
+              class="btn btn-primary"
+              disabled={@qa_loading}
+            >
+              <%= if @qa_loading do %>
+                <span class="loading loading-spinner loading-sm"></span>
+                Thinking...
+              <% else %>
+                <.icon name="hero-paper-airplane" class="w-4 h-4 mr-2" />
+                Ask
+              <% end %>
+            </button>
+            
+            <%= if @qa_answer do %>
+              <%= if @tts_available do %>
+                <button 
+                  type="button"
+                  class="btn btn-secondary"
+                  phx-click="speak_answer"
+                  disabled={@speaker_state.speaking}
+                >
+                  <%= if @speaker_state.speaking do %>
+                    <.icon name="hero-speaker-wave" class="w-4 h-4 mr-2 animate-pulse" />
+                    Speaking...
+                  <% else %>
+                    <.icon name="hero-speaker-wave" class="w-4 h-4 mr-2" />
+                    Speak (S)
+                  <% end %>
+                </button>
+              <% end %>
+              
+              <button 
+                type="button"
+                class="btn btn-outline"
+                phx-click="clear_qa"
+              >
+                Clear
+              </button>
+            <% end %>
+          </div>
+        </form>
+
+        <%= if @qa_answer do %>
+          <div class="mt-6">
+            <div class="divider"></div>
+            
+            <div class="prose max-w-none">
+              <h4 class="font-semibold flex items-center gap-2">
+                <.icon name="hero-light-bulb" class="w-5 h-5" />
+                Answer:
+              </h4>
+              <p class="whitespace-pre-wrap"><%= @qa_answer.answer %></p>
+            </div>
+
+            <%= if Map.get(@qa_answer, :citations) && length(@qa_answer.citations) > 0 do %>
+              <div class="mt-4">
+                <h5 class="font-semibold text-sm mb-2">Sources:</h5>
+                <ul class="text-sm space-y-1">
+                  <%= for citation <- @qa_answer.citations do %>
+                    <li class="flex items-start gap-2">
+                      <.icon name="hero-document-text" class="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <code class="text-xs"><%= citation %></code>
+                    </li>
+                  <% end %>
+                </ul>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+        <div class="modal-action">
+          <button class="btn" phx-click="toggle_qa">Close</button>
         </div>
       </div>
     </div>
@@ -246,6 +368,13 @@
 <script>
   // Keyboard shortcuts handler
   window.addEventListener("keydown", (event) => {
+    // Handle Cmd+/ for Q&A modal
+    if ((event.metaKey || event.ctrlKey) && event.key === "/") {
+      event.preventDefault();
+      document.querySelector('[phx-click="toggle_qa"]')?.click();
+      return;
+    }
+
     // Ignore if typing in an input
     if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA") {
       return;
@@ -265,6 +394,11 @@
       case "R":
         event.preventDefault();
         document.querySelector('[phx-click="recover"]')?.click();
+        break;
+      case "s":
+      case "S":
+        event.preventDefault();
+        document.querySelector('[phx-click="speak_answer"]')?.click();
         break;
       case "?":
         event.preventDefault();
