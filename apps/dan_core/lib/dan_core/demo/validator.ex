@@ -23,7 +23,9 @@ defmodule DanCore.Demo.Validator do
     "assert_text" => [:text],
     "wait" => [:duration],
     "take_screenshot" => [:filename],
-    "reload" => []
+    "reload" => [],
+    "narrate" => [:message],
+    "pause" => []
   }
 
   @doc """
