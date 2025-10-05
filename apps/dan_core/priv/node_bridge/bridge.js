@@ -99,13 +99,27 @@ class PlaywrightBridge {
 
   async handleGoto(params) {
     const url = typeof params === 'string' ? params : params.url;
-    await this.page.goto(url, { waitUntil: 'networkidle' });
-    this.sendResponse({
-      status: 'ok',
-      action: 'goto',
-      url: url,
-      title: await this.page.title()
-    });
+    
+    try {
+      await this.page.goto(url, { 
+        waitUntil: 'domcontentloaded',
+        timeout: 30000 
+      });
+      
+      // Wait a bit more for page to stabilize
+      await this.page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+        // networkidle timeout is ok, page might still be loading resources
+      });
+      
+      this.sendResponse({
+        status: 'ok',
+        action: 'goto',
+        url: url,
+        title: await this.page.title()
+      });
+    } catch (error) {
+      this.sendError(`Failed to navigate to ${url}`, error);
+    }
   }
 
   async handleClick(params) {

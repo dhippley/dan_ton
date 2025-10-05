@@ -10,6 +10,7 @@ defmodule DanCore.Demo.Runner do
   require Logger
 
   alias DanCore.Demo.Parser
+  alias DanCore.Demo.PlaywrightPort
   alias Phoenix.PubSub
 
   @pubsub_topic "demo:runner"
@@ -122,21 +123,32 @@ defmodule DanCore.Demo.Runner do
       {:ok, scenario} ->
         Logger.info("Starting demo: #{scenario.name}")
 
-        new_state = %{
-          state
-          | scenario: scenario,
-            current_step_index: 0,
-            status: :running,
-            step_history: [],
-            env: scenario.env
-        }
+        # Initialize the browser
+        case PlaywrightPort.init_browser() do
+          {:ok, _response} ->
+            # Give browser a moment to fully initialize
+            Process.sleep(1000)
+            
+            new_state = %{
+              state
+              | scenario: scenario,
+                current_step_index: 0,
+                status: :running,
+                step_history: [],
+                env: scenario.env
+            }
 
-        broadcast_event(:demo_started, %{
-          name: scenario.name,
-          total_steps: length(scenario.steps)
-        })
+            broadcast_event(:demo_started, %{
+              name: scenario.name,
+              total_steps: length(scenario.steps)
+            })
 
-        {:reply, {:ok, scenario.name}, new_state}
+            {:reply, {:ok, scenario.name}, new_state}
+
+          {:error, reason} ->
+            Logger.error("Failed to initialize browser: #{inspect(reason)}")
+            {:reply, {:error, "Browser initialization failed"}, state}
+        end
 
       {:error, reason} ->
         Logger.error("Failed to start demo: #{reason}")
@@ -279,10 +291,8 @@ defmodule DanCore.Demo.Runner do
   def handle_call(:stop_demo, _from, state) do
     Logger.info("Stopping demo")
 
-    # Close Playwright port if open
-    if state.playwright_port do
-      Port.close(state.playwright_port)
-    end
+    # Close browser
+    PlaywrightPort.close()
 
     new_state = %State{
       status: :idle,
@@ -315,47 +325,78 @@ defmodule DanCore.Demo.Runner do
 
   # Private Functions
 
-  defp execute_step(%{type: type} = step, _state) do
+  defp execute_step(%{type: type} = step, state) do
     Logger.info("Executing step: #{type}")
 
-    # For now, simulate execution
-    # In a real implementation, this would communicate with Playwright bridge
+    # Substitute environment variables in parameters
+    params = substitute_env_vars(step.params, state.env)
+
     case type do
       "goto" ->
-        {:ok, %{action: "goto", url: step.params}}
+        url = if is_binary(params), do: params, else: params.url
+        PlaywrightPort.execute(%{action: "goto", params: url})
 
       "click" ->
-        {:ok, %{action: "click", target: step.params}}
+        PlaywrightPort.execute(%{action: "click", params: params})
 
       "fill" ->
-        {:ok, %{action: "fill", field: step.params}}
+        PlaywrightPort.execute(%{action: "fill", params: params})
 
       "assert_text" ->
-        {:ok, %{action: "assert_text", text: step.params}}
+        text = if is_binary(params), do: params, else: params.text
+        PlaywrightPort.execute(%{action: "assert_text", params: text})
 
       "reload" ->
-        {:ok, %{action: "reload"}}
+        PlaywrightPort.execute(%{action: "reload", params: %{}})
 
       "take_screenshot" ->
-        {:ok, %{action: "take_screenshot", path: "screenshot_#{:os.system_time(:second)}.png"}}
+        filename = if is_binary(params), do: params, else: "screenshot_#{:os.system_time(:second)}.png"
+        screenshots_dir = Path.join(File.cwd!(), "screenshots")
+        File.mkdir_p!(screenshots_dir)
+        
+        PlaywrightPort.execute(%{
+          action: "take_screenshot",
+          params: %{path: filename, fullPath: Path.join(screenshots_dir, filename)}
+        })
 
       "wait" ->
-        if is_number(step.params) do
-          Process.sleep(step.params)
-        end
-
-        {:ok, %{action: "wait", duration: step.params}}
+        duration = if is_number(params), do: params, else: 1000
+        PlaywrightPort.execute(%{action: "wait", params: duration})
 
       "pause" ->
-        {:ok, %{action: "pause"}}
+        # Pause doesn't interact with browser, just acknowledge
+        {:ok, %{"status" => "ok", "action" => "pause"}}
 
       "narrate" ->
-        {:ok, %{action: "narrate", text: step.params}}
+        # Narration doesn't interact with browser
+        # Optionally trigger TTS here
+        text = if is_binary(params), do: params, else: ""
+        
+        if String.trim(text) != "" do
+          DanCore.Speaker.speak(text)
+        end
+        
+        {:ok, %{"status" => "ok", "action" => "narrate", "text" => text}}
 
       _ ->
         {:error, "Unknown step type: #{type}"}
     end
   end
+
+  # Substitute environment variables like ${base_url} with their values
+  defp substitute_env_vars(params, env) when is_binary(params) do
+    Enum.reduce(env, params, fn {key, value}, acc ->
+      String.replace(acc, "${#{key}}", to_string(value))
+    end)
+  end
+
+  defp substitute_env_vars(params, env) when is_map(params) do
+    Map.new(params, fn {k, v} ->
+      {k, substitute_env_vars(v, env)}
+    end)
+  end
+
+  defp substitute_env_vars(params, _env), do: params
 
   defp broadcast_event(event_type, payload) do
     PubSub.broadcast(

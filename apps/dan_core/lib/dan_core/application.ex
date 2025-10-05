@@ -12,6 +12,8 @@ defmodule DanCore.Application do
       {Oban, Application.fetch_env!(:dan_core, Oban)},
       {DNSCluster, query: Application.get_env(:dan_core, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: DanCore.PubSub},
+      # Playwright bridge for browser automation
+      DanCore.Demo.PlaywrightPort,
       # Demo Runner for Phase 2
       DanCore.Demo.Runner,
       # TTS Speaker for Phase 5
