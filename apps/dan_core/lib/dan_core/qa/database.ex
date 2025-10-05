@@ -77,6 +77,13 @@ defmodule DanCore.QA.Database do
   Returns top N results ranked by relevance.
   """
   def search(query_text, limit \\ 10) do
+    # Clean query text for FTS5 - remove special characters that cause syntax errors
+    cleaned_query =
+      query_text
+      |> String.replace(~r/[?!.,;:'"(){}[\]]/, " ")
+      |> String.split()
+      |> Enum.join(" OR ")
+
     with_connection(fn conn ->
       sql = """
       SELECT file_path, title, content, section, rank
@@ -86,7 +93,7 @@ defmodule DanCore.QA.Database do
       LIMIT ?2
       """
 
-      case execute_query(conn, sql, [query_text, limit]) do
+      case execute_query(conn, sql, [cleaned_query, limit]) do
         {:ok, rows} ->
           results =
             Enum.map(rows, fn [file_path, title, content, section, rank] ->

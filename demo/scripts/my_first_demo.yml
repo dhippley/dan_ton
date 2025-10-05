@@ -1,0 +1,47 @@
+name: "My First Demo - Phoenix Framework Website Tour"
+
+# Environment variables (optional)
+env:
+  base_url: "https://www.phoenixframework.org"
+
+# Demo steps - executed sequentially
+steps:
+  # Step 1: Navigate to website
+  - goto: "${base_url}"
+  
+  - narrate: "Welcome! Let's explore the Phoenix Framework website"
+
+  # Step 2: Wait for page to load
+  - wait: 2000
+
+  # Step 3: Click on a link (example - may need adjustment)
+  - click:
+      selector: "a[href='/blog']"
+  
+  - narrate: "Navigating to the Phoenix blog"
+
+  # Step 4: Wait to see the new page
+  - wait: 2000
+
+  # Step 5: Verify we're on the right page
+  - assert_text: "Blog"
+    
+  # Step 6: Take a screenshot
+  - take_screenshot: "phoenix_blog.png"
+  
+  - narrate: "Capturing the Phoenix blog page"
+
+  # Step 7: Go back to home
+  - goto: "${base_url}"
+  
+  - narrate: "Returning to the homepage"
+
+  # Step 8: Final verification
+  - assert_text: "Phoenix"
+  
+  - narrate: "Demo complete!"
+
+# Recovery steps (executed if demo fails)
+recover:
+  - goto: "${base_url}"
+  - wait: 1000

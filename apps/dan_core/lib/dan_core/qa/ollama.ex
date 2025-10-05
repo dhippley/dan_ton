@@ -22,7 +22,7 @@ defmodule DanCore.QA.Ollama do
   - `:stream` - Whether to stream response (default: false)
   """
   def generate(prompt, context \\ "", opts \\ []) do
-    model = Keyword.get(opts, :model, @default_model)
+    model = Keyword.get(opts, :model) || @default_model
     temperature = Keyword.get(opts, :temperature, 0.7)
     max_tokens = Keyword.get(opts, :max_tokens, 500)
 

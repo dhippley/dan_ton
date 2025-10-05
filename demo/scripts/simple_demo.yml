@@ -1,0 +1,26 @@
+name: "Simple Demo - Google Search"
+
+env:
+  search_url: "https://www.google.com"
+
+steps:
+  # Step 1: Go to Google
+  - goto: "${search_url}"
+  
+  - narrate: "Opening Google search"
+
+  # Step 2: Wait for page
+  - wait: 2000
+
+  # Step 3: Verify we're on Google
+  - assert_text: "Google"
+
+  # Step 4: Take a screenshot
+  - take_screenshot: "google_homepage.png"
+  
+  - narrate: "Demo complete!"
+
+# Simple recovery
+recover:
+  - goto: "${search_url}"
+  - wait: 1000

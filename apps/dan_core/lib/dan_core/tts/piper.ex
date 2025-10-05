@@ -15,9 +15,11 @@ defmodule DanCore.TTS.Piper do
   require Logger
 
   @piper_dir "apps/dan_core/priv/piper"
-  @piper_binary "#{@piper_dir}/piper"
   @models_dir "#{@piper_dir}/models"
   @default_voice "en_US-lessac-medium"
+
+  # Use system-installed piper (via pip)
+  defp piper_binary, do: System.find_executable("piper") || "piper"
 
   @impl true
   def speak(text, opts \\ []) do
@@ -30,8 +32,8 @@ defmodule DanCore.TTS.Piper do
         Logger.warning("Voice model not found: #{voice}")
         {:error, :model_not_found}
 
-      not File.exists?(@piper_binary) ->
-        Logger.warning("Piper binary not found at #{@piper_binary}")
+      not piper_installed?() ->
+        Logger.warning("Piper not found. Install with: pip install piper-tts")
         {:error, :binary_not_found}
 
       true ->
@@ -40,25 +42,35 @@ defmodule DanCore.TTS.Piper do
   end
 
   defp execute_piper(text, model_path, config_path) do
+    # Use temp file approach to avoid broken pipe errors
+    temp_file = Path.join(System.tmp_dir!(), "piper_#{:os.system_time(:millisecond)}.wav")
 
-    # Execute Piper with text input
     args = [
       "--model",
       model_path,
       "--config",
       config_path,
-      "--output-raw"
+      "--output_file",
+      temp_file
     ]
 
     try do
-      # Pipe text to Piper, which outputs raw audio that we pipe to afplay (macOS) or aplay (Linux)
-      case System.cmd("sh", [
-             "-c",
-             "echo #{escape_text(text)} | #{@piper_binary} #{Enum.join(args, " ")} | #{audio_player()}"
-           ]) do
+      # Generate audio to file, then play it
+      case System.cmd("sh", ["-c", "echo #{escape_text(text)} | #{piper_binary()} #{Enum.join(args, " ")}"]) do
         {_, 0} ->
-          Logger.debug("Piper TTS spoke: #{String.slice(text, 0..50)}...")
-          :ok
+          Logger.debug("Piper TTS generated audio: #{String.slice(text, 0..50)}...")
+
+          # Play the generated file
+          case play_audio_file(temp_file) do
+            :ok ->
+              # Clean up temp file
+              File.rm(temp_file)
+              :ok
+
+            error ->
+              File.rm(temp_file)
+              error
+          end
 
         {error, code} ->
           Logger.error("Piper TTS failed (#{code}): #{error}")
@@ -71,9 +83,39 @@ defmodule DanCore.TTS.Piper do
     end
   end
 
+  defp play_audio_file(file_path) do
+    case os_type() do
+      :macos ->
+        case System.cmd("afplay", [file_path]) do
+          {_, 0} -> :ok
+          {error, code} ->
+            Logger.error("afplay failed (#{code}): #{error}")
+            {:error, {:playback_failed, code}}
+        end
+
+      :linux ->
+        case System.cmd("aplay", [file_path]) do
+          {_, 0} -> :ok
+          {error, code} ->
+            Logger.error("aplay failed (#{code}): #{error}")
+            {:error, {:playback_failed, code}}
+        end
+
+      _ ->
+        {:error, :unsupported_platform}
+    end
+  end
+
   @impl true
   def available? do
-    File.exists?(@piper_binary) && File.exists?(@models_dir)
+    piper_installed?() and File.exists?(@models_dir)
+  end
+
+  defp piper_installed? do
+    case System.cmd("which", ["piper"]) do
+      {path, 0} when path != "" -> true
+      _ -> false
+    end
   end
 
   @impl true
@@ -103,7 +145,7 @@ defmodule DanCore.TTS.Piper do
   end
 
   @doc """
-  Sets up Piper by downloading the binary and voice models.
+  Sets up Piper by installing via pip and downloading voice models.
 
   This should be run once during installation:
       mix piper.setup
@@ -111,8 +153,8 @@ defmodule DanCore.TTS.Piper do
   def setup do
     Logger.info("Setting up Piper TTS...")
 
-    with :ok <- create_directories(),
-         :ok <- download_binary(),
+    with :ok <- check_or_install_piper(),
+         :ok <- create_directories(),
          :ok <- download_voice_model(@default_voice) do
       Logger.info("Piper setup complete!")
       :ok
@@ -123,27 +165,79 @@ defmodule DanCore.TTS.Piper do
     end
   end
 
+  defp check_or_install_piper do
+    if piper_installed?() do
+      Logger.info("Piper is already installed")
+      :ok
+    else
+      Logger.info("Piper not found. Attempting to install via pip...")
+
+      case System.cmd("pip3", ["install", "piper-tts"]) do
+        {_, 0} ->
+          Logger.info("Piper installed successfully")
+          :ok
+
+        {error, code} ->
+          Logger.error("Failed to install Piper (#{code}): #{error}")
+          Logger.info("Please install manually: pip3 install piper-tts")
+          {:error, :install_failed}
+      end
+    end
+  end
+
   @doc """
-  Downloads a specific voice model.
+  Downloads a specific voice model using Piper's built-in downloader.
   """
   def download_voice_model(voice) do
     Logger.info("Downloading voice model: #{voice}")
 
-    model_url = voice_model_url(voice)
-    config_url = voice_config_url(voice)
+    # Use piper's built-in download_voices command
+    case System.cmd("python3", ["-m", "piper.download_voices", "--download-dir", @models_dir, voice]) do
+      {output, 0} ->
+        Logger.info("Voice model downloaded: #{voice}")
+        Logger.debug(output)
 
-    model_path = Path.join(@models_dir, "#{voice}.onnx")
-    config_path = Path.join(@models_dir, "#{voice}.onnx.json")
+        # The downloaded files need to be renamed to match our expected format
+        # Piper downloads to en/en_US/lessac/medium/en_US-lessac-medium.onnx
+        # We need it at models/en_US-lessac-medium.onnx
+        rename_downloaded_model(voice)
 
-    with :ok <- download_file(model_url, model_path),
-         :ok <- download_file(config_url, config_path) do
-      Logger.info("Voice model downloaded: #{voice}")
-      :ok
-    else
-      {:error, reason} = error ->
-        Logger.error("Failed to download voice model: #{inspect(reason)}")
-        error
+      {error, code} ->
+        Logger.error("Failed to download voice (#{code}): #{error}")
+        {:error, :download_failed}
     end
+  end
+
+  defp rename_downloaded_model(voice) do
+    # Piper downloads to a nested directory structure
+    # Try to find and copy the files to our models directory
+    possible_paths = [
+      Path.join([@models_dir, "en", "en_US", voice, "en_US-#{voice}.onnx"]),
+      Path.join([@models_dir, voice, "en_US-#{voice}.onnx"]),
+      Path.join([@models_dir, "en_US-#{voice}.onnx"])
+    ]
+
+    # Check which path exists and copy if needed
+    Enum.find_value(possible_paths, :ok, fn src_path ->
+      if File.exists?(src_path) do
+        dest_onnx = Path.join(@models_dir, "#{voice}.onnx")
+        dest_json = Path.join(@models_dir, "#{voice}.onnx.json")
+
+        src_json = String.replace(src_path, ".onnx", ".onnx.json")
+
+        unless File.exists?(dest_onnx) do
+          File.cp!(src_path, dest_onnx)
+        end
+
+        if File.exists?(src_json) and not File.exists?(dest_json) do
+          File.cp!(src_json, dest_json)
+        end
+
+        :ok
+      else
+        nil
+      end
+    end)
   end
 
   # Private functions
@@ -154,25 +248,6 @@ defmodule DanCore.TTS.Piper do
     :ok
   end
 
-  defp download_binary do
-    if File.exists?(@piper_binary) do
-      Logger.info("Piper binary already exists")
-      :ok
-    else
-      Logger.info("Downloading Piper binary...")
-      url = piper_binary_url()
-
-      case download_file(url, @piper_binary) do
-        :ok ->
-          File.chmod(@piper_binary, 0o755)
-          Logger.info("Piper binary downloaded and made executable")
-          :ok
-
-        error ->
-          error
-      end
-    end
-  end
 
   defp download_file(url, dest_path) do
     Logger.debug("Downloading: #{url}")
@@ -190,33 +265,13 @@ defmodule DanCore.TTS.Piper do
     end
   end
 
-  defp piper_binary_url do
-    # Detect platform and return appropriate binary URL
-    case {os_type(), arch()} do
-      {:macos, :aarch64} ->
-        "https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_macos_arm64.tar.gz"
-
-      {:macos, :x86_64} ->
-        "https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_macos_x86_64.tar.gz"
-
-      {:linux, :aarch64} ->
-        "https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_linux_aarch64.tar.gz"
-
-      {:linux, :x86_64} ->
-        "https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_linux_x86_64.tar.gz"
-
-      other ->
-        Logger.error("Unsupported platform: #{inspect(other)}")
-        nil
-    end
-  end
-
   defp voice_model_url(voice) do
-    "https://huggingface.co/rhasspy/piper-voices/resolve/main/#{voice}.onnx"
+    # Use python -m piper.download_voices to download voices
+    "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/#{voice}/en_US-#{voice}.onnx"
   end
 
   defp voice_config_url(voice) do
-    "https://huggingface.co/rhasspy/piper-voices/resolve/main/#{voice}.onnx.json"
+    "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/#{voice}/en_US-#{voice}.onnx.json"
   end
 
   defp os_type do

@@ -5,6 +5,20 @@ import Config
 # system starts, so it is typically used to load production configuration
 # and secrets from environment variables or elsewhere. Do not define
 # any compile-time configuration in here, as it won't be applied.
+
+# Configure TTS adapter based on environment
+tts_adapter =
+  case System.get_env("DAN_TTS_ADAPTER") do
+    "piper" -> DanCore.TTS.Piper
+    "macsay" -> DanCore.TTS.MacSay
+    "null" -> DanCore.TTS.Null
+    _ -> nil  # Auto-detect
+  end
+
+config :dan_core,
+  tts_adapter: tts_adapter,
+  ollama_base_url: System.get_env("OLLAMA_URL", "http://localhost:11434")
+
 # The block below contains prod specific runtime configuration.
 
 # ## Using releases

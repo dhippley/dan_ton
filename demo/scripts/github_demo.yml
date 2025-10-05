@@ -1,0 +1,37 @@
+name: "GitHub Profile Demo - Simple Navigation"
+
+env:
+  base_url: "https://github.com"
+
+steps:
+  # Navigate to GitHub
+  - goto: "${base_url}"
+  
+  - narrate: "Opening GitHub homepage"
+
+  # Wait for page load
+  - wait: 2000
+
+  # Verify we're on GitHub
+  - assert_text: "GitHub"
+    
+  # Navigate to explore page
+  - goto: "${base_url}/explore"
+  
+  - narrate: "Exploring trending repositories"
+
+  # Wait for explore page
+  - wait: 2000
+
+  # Verify explore page
+  - assert_text: "Explore"
+
+  # Take screenshot
+  - take_screenshot: "github_explore.png"
+  
+  - narrate: "Demo complete!"
+
+# Recovery: just go back to homepage
+recover:
+  - goto: "${base_url}"
+  - wait: 1000
