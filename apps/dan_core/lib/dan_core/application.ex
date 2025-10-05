@@ -11,9 +11,10 @@ defmodule DanCore.Application do
       DanCore.Repo,
       {Oban, Application.fetch_env!(:dan_core, Oban)},
       {DNSCluster, query: Application.get_env(:dan_core, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: DanCore.PubSub}
-      # Start additional workers here
-      # {DanCore.Demo.Runner, []},
+      {Phoenix.PubSub, name: DanCore.PubSub},
+      # Demo Runner for Phase 2
+      DanCore.Demo.Runner
+      # Future: TTS Speaker for Phase 5
       # {DanCore.Speaker, []}
     ]
 

@@ -227,16 +227,23 @@ defmodule DanWeb.DemoLive do
     end
   end
 
-  defp status_color(:idle), do: "text-gray-500"
-  defp status_color(:running), do: "text-blue-500"
-  defp status_color(:paused), do: "text-yellow-500"
-  defp status_color(:completed), do: "text-green-500"
-  defp status_color(:error), do: "text-red-500"
-  defp status_color(_), do: "text-gray-500"
-
   defp log_color("info"), do: "text-blue-400"
   defp log_color("success"), do: "text-green-400"
   defp log_color("error"), do: "text-red-400"
   defp log_color("warning"), do: "text-yellow-400"
   defp log_color(_), do: "text-gray-400"
+
+  defp status_badge_color(:idle), do: "badge-ghost"
+  defp status_badge_color(:running), do: "badge-primary"
+  defp status_badge_color(:paused), do: "badge-warning"
+  defp status_badge_color(:completed), do: "badge-success"
+  defp status_badge_color(:error), do: "badge-error"
+  defp status_badge_color(_), do: "badge-ghost"
+
+  defp status_text(:idle), do: "IDLE"
+  defp status_text(:running), do: "RUNNING"
+  defp status_text(:paused), do: "PAUSED"
+  defp status_text(:completed), do: "COMPLETED"
+  defp status_text(:error), do: "ERROR"
+  defp status_text(_), do: "UNKNOWN"
 end

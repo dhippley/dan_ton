@@ -1,0 +1,275 @@
+<div class="min-h-screen bg-base-200" phx-window-keydown="handle_keydown" phx-throttle="300">
+  <!-- Header -->
+  <div class="navbar bg-base-300 shadow-lg">
+    <div class="flex-1">
+      <h1 class="text-xl font-bold px-4">
+        dan_ton Demo Runner
+      </h1>
+    </div>
+    <div class="flex-none gap-2">
+      <div class={"badge badge-lg " <> status_badge_color(@demo_state.status)}>
+        <%= status_text(@demo_state.status) %>
+      </div>
+      <button class="btn btn-circle btn-ghost" phx-click="toggle_help">
+        <.icon name="hero-question-mark-circle" class="w-6 h-6" />
+      </button>
+    </div>
+  </div>
+
+  <div class="container mx-auto p-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Left Column: Demo Control -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Demo Selection -->
+        <div class="card bg-base-100 shadow-xl">
+          <div class="card-body">
+            <h2 class="card-title">
+              <.icon name="hero-play" class="w-5 h-5" />
+              Select Demo
+            </h2>
+            
+            <div class="form-control">
+              <select 
+                class="select select-bordered w-full"
+                phx-change="select_script"
+                name="path"
+              >
+                <option disabled selected={is_nil(@selected_script)}>
+                  Choose a demo script...
+                </option>
+                <%= for script <- @demo_scripts do %>
+                  <option value={script.path} selected={@selected_script == script.path}>
+                    <%= script.name %>
+                  </option>
+                <% end %>
+              </select>
+            </div>
+
+            <div class="card-actions justify-end mt-4">
+              <button 
+                class="btn btn-primary"
+                phx-click="load_demo"
+                phx-value-script={@selected_script}
+                disabled={is_nil(@selected_script)}
+              >
+                <.icon name="hero-arrow-down-tray" class="w-4 h-4 mr-2" />
+                Load Demo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Current Demo Info -->
+        <%= if @demo_state.scenario_name do %>
+          <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+              <h2 class="card-title">
+                <.icon name="hero-film" class="w-5 h-5" />
+                <%= @demo_state.scenario_name %>
+              </h2>
+              
+              <!-- Progress Bar -->
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span>Progress</span>
+                  <span class="font-mono">
+                    <%= @demo_state.current_step_index || 0 %> / <%= @demo_state.total_steps || 0 %>
+                  </span>
+                </div>
+                <progress 
+                  class="progress progress-primary w-full" 
+                  value={@demo_state.current_step_index || 0} 
+                  max={@demo_state.total_steps || 1}
+                >
+                </progress>
+              </div>
+
+              <!-- Control Buttons -->
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+                <button 
+                  class="btn btn-sm btn-outline"
+                  phx-click="previous_step"
+                  disabled={@demo_state.status != :running}
+                >
+                  <.icon name="hero-backward" class="w-4 h-4" />
+                  <span class="hidden md:inline ml-2">Back</span>
+                  <kbd class="kbd kbd-xs ml-2 hidden lg:inline">B</kbd>
+                </button>
+
+                <button 
+                  class="btn btn-sm btn-primary"
+                  phx-click="next_step"
+                  disabled={@demo_state.status != :running}
+                >
+                  <.icon name="hero-forward" class="w-4 h-4" />
+                  <span class="hidden md:inline ml-2">Next</span>
+                  <kbd class="kbd kbd-xs ml-2 hidden lg:inline">Space</kbd>
+                </button>
+
+                <button 
+                  class="btn btn-sm btn-warning"
+                  phx-click="recover"
+                  disabled={@demo_state.status == :idle}
+                >
+                  <.icon name="hero-arrow-path" class="w-4 h-4" />
+                  <span class="hidden md:inline ml-2">Recover</span>
+                  <kbd class="kbd kbd-xs ml-2 hidden lg:inline">R</kbd>
+                </button>
+
+                <button 
+                  class="btn btn-sm btn-accent"
+                  phx-click="restart_demo"
+                  disabled={@demo_state.status == :idle}
+                >
+                  <.icon name="hero-arrow-uturn-left" class="w-4 h-4" />
+                  <span class="hidden md:inline ml-2">Restart</span>
+                </button>
+              </div>
+
+              <div class="divider"></div>
+
+              <button 
+                class="btn btn-sm btn-error btn-outline"
+                phx-click="stop_demo"
+                disabled={@demo_state.status == :idle}
+              >
+                <.icon name="hero-stop" class="w-4 h-4 mr-2" />
+                Stop Demo
+              </button>
+            </div>
+          </div>
+
+          <!-- Step History -->
+          <%= if length(@demo_state.step_history) > 0 do %>
+            <div class="card bg-base-100 shadow-xl">
+              <div class="card-body">
+                <h2 class="card-title">
+                  <.icon name="hero-clock" class="w-5 h-5" />
+                  Step History
+                </h2>
+                
+                <div class="overflow-x-auto">
+                  <table class="table table-zebra table-sm">
+                    <thead>
+                      <tr>
+                        <th>Step</th>
+                        <th>Action</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <%= for entry <- Enum.reverse(@demo_state.step_history) do %>
+                        <tr>
+                          <td class="font-mono"><%= entry.index + 1 %></td>
+                          <td><%= entry.step.type %></td>
+                          <td>
+                            <span class="badge badge-success badge-sm">
+                              <.icon name="hero-check" class="w-3 h-3" />
+                            </span>
+                          </td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+
+      <!-- Right Column: Logs -->
+      <div class="space-y-6">
+        <div class="card bg-base-100 shadow-xl">
+          <div class="card-body">
+            <h2 class="card-title">
+              <.icon name="hero-document-text" class="w-5 h-5" />
+              Activity Log
+            </h2>
+            
+            <div class="h-96 overflow-y-auto space-y-2 font-mono text-sm">
+              <%= if length(@logs) == 0 do %>
+                <p class="text-gray-500 italic">No activity yet...</p>
+              <% else %>
+                <%= for log <- @logs do %>
+                  <div class={"flex gap-2 " <> log_color(log.level)}>
+                    <span class="text-xs text-gray-500 shrink-0">
+                      <%= log.timestamp |> String.slice(11..18) %>
+                    </span>
+                    <span class="flex-1"><%= log.message %></span>
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <%= if @show_help do %>
+    <div class="modal modal-open">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">
+          <.icon name="hero-information-circle" class="w-6 h-6 inline mr-2" />
+          Keyboard Shortcuts
+        </h3>
+        
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span>Next Step</span>
+            <kbd class="kbd">Space</kbd>
+          </div>
+          <div class="flex justify-between items-center">
+            <span>Previous Step</span>
+            <kbd class="kbd">B</kbd>
+          </div>
+          <div class="flex justify-between items-center">
+            <span>Recover</span>
+            <kbd class="kbd">R</kbd>
+          </div>
+          <div class="flex justify-between items-center">
+            <span>Toggle Help</span>
+            <kbd class="kbd">?</kbd>
+          </div>
+        </div>
+
+        <div class="modal-action">
+          <button class="btn" phx-click="toggle_help">Close</button>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<script>
+  // Keyboard shortcuts handler
+  window.addEventListener("keydown", (event) => {
+    // Ignore if typing in an input
+    if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA") {
+      return;
+    }
+
+    switch(event.key) {
+      case " ":
+        event.preventDefault();
+        document.querySelector('[phx-click="next_step"]')?.click();
+        break;
+      case "b":
+      case "B":
+        event.preventDefault();
+        document.querySelector('[phx-click="previous_step"]')?.click();
+        break;
+      case "r":
+      case "R":
+        event.preventDefault();
+        document.querySelector('[phx-click="recover"]')?.click();
+        break;
+      case "?":
+        event.preventDefault();
+        document.querySelector('[phx-click="toggle_help"]')?.click();
+        break;
+    }
+  });
+</script>
