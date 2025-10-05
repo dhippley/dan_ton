@@ -1,7 +1,7 @@
 defmodule DanCore.Speaker do
   @moduledoc """
   GenServer for managing TTS speech queue and playback.
-  
+
   Prevents overlapping speech by queueing requests and playing them sequentially.
   Broadcasts state changes via PubSub for UI updates.
   """
@@ -26,7 +26,7 @@ defmodule DanCore.Speaker do
 
   @doc """
   Queues text to be spoken.
-  
+
   Options:
   - `:voice` - Voice to use (defaults to adapter default)
   - `:priority` - :high or :normal (default: :normal)

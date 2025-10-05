@@ -1,7 +1,7 @@
 defmodule DanCore.QA.Database do
   @moduledoc """
   SQLite FTS5 database for document search.
-  
+
   Manages the SQLite connection and provides query interface for full-text search.
   """
 
@@ -73,7 +73,7 @@ defmodule DanCore.QA.Database do
 
   @doc """
   Searches documents using FTS5 full-text search.
-  
+
   Returns top N results ranked by relevance.
   """
   def search(query_text, limit \\ 10) do

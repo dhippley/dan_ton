@@ -1,7 +1,7 @@
 defmodule DanCore.QA.Ollama do
   @moduledoc """
   Client for communicating with Ollama LLM API.
-  
+
   Provides interface for text generation using local Ollama models.
   Default model: llama3.1:8b
   """
@@ -14,7 +14,7 @@ defmodule DanCore.QA.Ollama do
 
   @doc """
   Generates text completion using Ollama.
-  
+
   Options:
   - `:model` - Model to use (default: "llama3.1:8b")
   - `:temperature` - Sampling temperature (default: 0.7)
@@ -93,7 +93,7 @@ defmodule DanCore.QA.Ollama do
 
   @doc """
   Pulls a model from Ollama registry.
-  
+
   This is a long-running operation that may take several minutes.
   """
   def pull_model(model_name) do

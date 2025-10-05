@@ -1,7 +1,7 @@
 defmodule DanCore.QA.Indexer do
   @moduledoc """
   Indexes markdown documentation files into the FTS5 search database.
-  
+
   Scans demo/docs/ recursively, parses markdown files, and indexes their content
   for full-text search and RAG retrieval.
   """
@@ -13,7 +13,7 @@ defmodule DanCore.QA.Indexer do
 
   @doc """
   Indexes all documentation files from demo/docs/
-  
+
   Returns {:ok, count} where count is the number of files indexed.
   """
   def index_all do

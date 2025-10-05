@@ -1,7 +1,7 @@
 defmodule DanCore.TTS.MacSay do
   @moduledoc """
   macOS `say` command TTS adapter.
-  
+
   Simple adapter using the built-in macOS text-to-speech system.
   Only available on macOS.
   """

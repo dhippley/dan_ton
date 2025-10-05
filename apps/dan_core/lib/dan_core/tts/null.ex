@@ -1,7 +1,7 @@
 defmodule DanCore.TTS.Null do
   @moduledoc """
   Null TTS adapter that does nothing.
-  
+
   Used as a fallback when no TTS system is available.
   Logs warnings but doesn't fail.
   """

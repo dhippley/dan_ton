@@ -1,12 +1,12 @@
 defmodule DanCore.TTS.Piper do
   @moduledoc """
   Piper TTS adapter using local neural text-to-speech.
-  
+
   Piper is a fast, high-quality TTS system that runs completely offline.
   It requires:
   - Piper binary (downloaded automatically)
   - Voice model files (.onnx + .json)
-  
+
   For macOS ARM64, downloads the appropriate binary and voice models.
   """
 
@@ -104,7 +104,7 @@ defmodule DanCore.TTS.Piper do
 
   @doc """
   Sets up Piper by downloading the binary and voice models.
-  
+
   This should be run once during installation:
       mix piper.setup
   """

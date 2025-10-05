@@ -1,14 +1,14 @@
 defmodule DanCore.TTS do
   @moduledoc """
   Behaviour module for Text-to-Speech adapters.
-  
+
   Defines the interface that all TTS implementations must follow.
   Supports multiple backends (Piper, MacSay, etc.) with runtime switching.
   """
 
   @doc """
   Speaks the given text using the TTS engine.
-  
+
   Returns :ok if speech started successfully, {:error, reason} otherwise.
   """
   @callback speak(text :: String.t(), opts :: Keyword.t()) :: :ok | {:error, term()}
@@ -35,7 +35,7 @@ defmodule DanCore.TTS do
 
   @doc """
   Gets the configured TTS adapter module.
-  
+
   Order of preference:
   1. Application config :tts_adapter
   2. Auto-detect based on platform

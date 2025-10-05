@@ -1,9 +1,9 @@
 defmodule DanCore.QA.Engine do
   @moduledoc """
   RAG (Retrieval-Augmented Generation) query engine.
-  
+
   Combines full-text search with LLM generation to answer questions about documentation.
-  
+
   Pipeline:
   1. Query → FTS5 search (retrieve top N chunks)
   2. Build context from retrieved documents
@@ -20,7 +20,7 @@ defmodule DanCore.QA.Engine do
 
   @doc """
   Answers a question using RAG pipeline.
-  
+
   Options:
   - `:retrieve_count` - Number of documents to retrieve (default: 5)
   - `:model` - Ollama model to use (default: "llama3.1:8b")
