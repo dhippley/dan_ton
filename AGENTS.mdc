@@ -1,0 +1,84 @@
+---
+alwaysApply: true
+---
+
+# AGENTS — Phoenix + Elixir (Slim Edition)
+
+> Non-negotiable rules. Prefer reuse, supervision, and observability. Raise at edges; tuples in domain. No mocking libs.
+
+## 0) Do-this-first (repo setup)
+- `mix precommit` must run: `deps.get`, `format`, `credo --strict`, `sobelow --config`.
+- HTTP: **Req** only.
+- Required deps:
+  - `{:styler, "~> 1.0", only: :dev, runtime: false}`
+  - `{:credo, "~> 1.7", only: [:dev,:test], runtime: false}`
+  - `{:oban, "~> 2.17"}` (+ migration + supervision)
+  - `{:oban_web, "~> 2.11", organization: "oban"}` (admin-protected route; license env)
+- CI: `mix format --check-formatted`.
+
+## 1) Phoenix v1.8 web rules
+- LiveView templates start with `<Layouts.app flash={@flash} ...>`.
+- Fix `current_scope` via proper `live_session` + pass into `Layouts.app`.
+- `<.flash_group>` only in `Layouts`.
+- Use `<.icon>` and `<.input>` from `core_components.ex`.
+- Router scopes auto-alias: don’t re-alias modules.
+- No `Phoenix.View`.
+
+## 2) JS/CSS
+- Tailwind v4 import block:
+  ```
+  @import "tailwindcss" source(none);
+  @source "../css"; @source "../js"; @source "../../lib/my_app_web";
+  ```
+- No `@apply`. No DaisyUI. Only `app.js`/`app.css`. No inline `<script>`.
+
+## 3) UI/UX & HEEx
+- Reuse > one-offs. Prefer **function components**; **LiveComponents** only when live state required.
+- JS last resort; prefer `Phoenix.LiveView.JS`.
+- Forms: use `@form = to_form(...)`; template uses `<.form for={@form}>` and `@form[:field]`.
+- HEEx: use `{...}` for attrs, `<%= ... %>` for bodies. Use `[ ... ]` for class lists.
+- Add stable IDs for tests; provide loading/empty/error states.
+
+## 4) Elixir language & structure
+- One module per file.
+- Don’t `String.to_atom/1` on user input.
+- Predicates end with `?`. Lists aren’t indexable; use `Enum.at/2`.
+- Public functions have `@spec` + `@doc`. Return tuples (`{:ok,_}` or `{:error,_}`).
+
+## 5) Ecto
+- Preload associations used in views. Schema text → `:string`. No `:allow_nil`.
+- Internal-only fields not in `cast/3`.
+- Multi-step writes → `Ecto.Multi`.
+
+## 6) Components
+- Reusable > one-off. LiveComponents when live updates required.
+- Keep state minimal; use events or `send_update/2`.
+
+## 7) GenServers
+- Liberal use when managing **state**, **back-pressure**, or **coordination**.
+- Don’t use for pure funcs or one-shot tasks.
+- Supervise; name via `Registry` or `via`.
+
+## 8) External Integrations
+- Always wrap APIs in **GenServer + ETS cache** (TTL + retries + telemetry).
+
+## 9) GenStage & Broadway
+- Use **Broadway** for external streams; **GenStage** for internal flows.
+- Integrate with Oban for durable work.
+
+## 10) Oban Jobs
+- For async/heavy/cron work. One worker per concern. Idempotent + telemetry.
+- Contexts enqueue; use `{:discard, reason}` for non-retryables.
+
+## 11) Testing
+- **No mocking libs**. Test real behavior or deterministic fakes.
+
+## 12) Telemetry
+- Emit `[:app, :component, :event]` metrics. Print durations in dev.
+
+## 13) Checklist
+- [ ] Format + precommit green
+- [ ] Credo/Sobelow clean
+- [ ] Specs/docs/tests on public API
+- [ ] Required deps configured
+- [ ] Telemetry added
