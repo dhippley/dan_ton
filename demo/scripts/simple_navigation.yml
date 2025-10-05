@@ -1,0 +1,26 @@
+name: "Simple Navigation Test"
+env:
+  base_url: "http://localhost:4000"
+
+steps:
+  - goto: "/"
+  
+  - narrate: "Starting at the homepage"
+  
+  - assert_text: "Welcome"
+  
+  - wait: 1000
+  
+  - click:
+      text: "About"
+  
+  - narrate: "Navigating to the About page"
+  
+  - assert_text: "About Us"
+  
+  - wait: 1000
+  
+  - take_screenshot: true
+
+recover:
+  - reload: true

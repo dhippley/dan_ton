@@ -36,7 +36,8 @@ defmodule DanCore.MixProject do
       {:oban, "~> 2.17"},
       {:swoosh, "~> 1.16"},
       {:dns_cluster, "~> 0.2.0"},
-      {:yaml_elixir, "~> 2.9"}
+      {:yaml_elixir, "~> 2.9"},
+      {:phoenix_pubsub, "~> 2.1"}
     ]
   end
 

@@ -1,0 +1,30 @@
+name: "Example Demo - Getting Started"
+env:
+  base_url: "https://example.com"
+
+steps:
+  # Navigate to the homepage
+  - goto: "https://example.com"
+  
+  # Verify we're on the right page
+  - assert_text: "Example Domain"
+  
+  # Click a link (if available)
+  - narrate: "This is an example demonstration showing how demo scripts work"
+  
+  # Wait a moment
+  - wait: 2000
+  
+  # Take a screenshot
+  - take_screenshot: true
+  
+  # Navigate to another page (example)
+  - goto: "https://example.com/about"
+  
+  # Pause for user observation
+  - pause: true
+
+recover:
+  # If something goes wrong, reload and screenshot
+  - reload: true
+  - take_screenshot: true

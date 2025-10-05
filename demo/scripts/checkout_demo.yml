@@ -1,0 +1,115 @@
+name: "E-commerce Checkout Demo"
+env:
+  base_url: "http://localhost:4000"
+  test_user_email: "demo@example.com"
+  test_card: "4242 4242 4242 4242"
+
+steps:
+  # Start at the menu/products page
+  - goto: "/menu"
+  
+  - narrate: "Welcome to our e-commerce demo. Let's walk through a typical checkout flow."
+  
+  # Verify page loaded
+  - assert_text: "Menu"
+  
+  - wait: 1000
+  
+  # Add first item to cart
+  - narrate: "First, we'll add an item to our cart"
+  
+  - click:
+      role: "button"
+      name: "Add to Cart"
+  
+  # Verify item was added
+  - assert_text: "Added to cart"
+  
+  - wait: 1000
+  
+  # Navigate to cart
+  - narrate: "Now let's view our cart"
+  
+  - goto: "/cart"
+  
+  - assert_text: "Shopping Cart"
+  
+  - wait: 1000
+  
+  # Proceed to checkout
+  - narrate: "Let's proceed to checkout"
+  
+  - click:
+      role: "button"
+      name: "Checkout"
+  
+  # Fill in shipping information
+  - narrate: "We'll fill in the shipping information"
+  
+  - goto: "/checkout"
+  
+  - fill:
+      field: "email"
+      value: "demo@example.com"
+  
+  - fill:
+      field: "firstName"
+      value: "John"
+  
+  - fill:
+      field: "lastName"
+      value: "Doe"
+  
+  - fill:
+      field: "address"
+      value: "123 Main Street"
+  
+  - fill:
+      field: "city"
+      value: "San Francisco"
+  
+  - fill:
+      field: "zipCode"
+      value: "94102"
+  
+  - wait: 1000
+  
+  # Fill in payment information
+  - narrate: "Now we'll enter payment details"
+  
+  - fill:
+      field: "cardNumber"
+      value: "4242 4242 4242 4242"
+  
+  - fill:
+      field: "expiry"
+      value: "12/25"
+  
+  - fill:
+      field: "cvv"
+      value: "123"
+  
+  - wait: 1000
+  
+  # Submit the order
+  - narrate: "Finally, let's submit the order"
+  
+  - click:
+      role: "button"
+      name: "Place Order"
+  
+  - wait: 2000
+  
+  # Verify success
+  - assert_text: "Order confirmed"
+  
+  - narrate: "Success! The order has been placed."
+  
+  - take_screenshot: true
+
+recover:
+  # Recovery steps if something fails
+  - narrate: "Something went wrong. Let me try to recover."
+  - reload: true
+  - wait: 2000
+  - take_screenshot: true

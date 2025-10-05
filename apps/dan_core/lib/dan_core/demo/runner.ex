@@ -315,7 +315,7 @@ defmodule DanCore.Demo.Runner do
 
   # Private Functions
 
-  defp execute_step(%{type: type} = step, state) do
+  defp execute_step(%{type: type} = step, _state) do
     Logger.info("Executing step: #{type}")
 
     # For now, simulate execution
