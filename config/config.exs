@@ -7,19 +7,19 @@
 # General application configuration
 import Config
 
-config :dan_ton,
-  ecto_repos: [DanTon.Repo],
+config :dan_core,
+  ecto_repos: [DanCore.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Configures the endpoint
-config :dan_ton, DanTonWeb.Endpoint,
+config :dan_web, DanWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: DanTonWeb.ErrorHTML, json: DanTonWeb.ErrorJSON],
+    formats: [html: DanWeb.ErrorHTML, json: DanWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: DanTon.PubSub,
+  pubsub_server: DanCore.PubSub,
   live_view: [signing_salt: "5MxFfY/2"]
 
 # Configures the mailer
@@ -29,7 +29,7 @@ config :dan_ton, DanTonWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :dan_ton, DanTon.Mailer, adapter: Swoosh.Adapters.Local
+config :dan_core, DanCore.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,
@@ -37,7 +37,7 @@ config :esbuild,
   dan_ton: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
-    cd: Path.expand("../assets", __DIR__),
+    cd: Path.expand("../apps/dan_web/assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
 
@@ -46,8 +46,8 @@ config :tailwind,
   version: "4.1.7",
   dan_ton: [
     args: ~w(
-      --input=assets/css/app.css
-      --output=priv/static/assets/css/app.css
+      --input=apps/dan_web/assets/css/app.css
+      --output=apps/dan_web/priv/static/assets/css/app.css
     ),
     cd: Path.expand("..", __DIR__)
   ]
@@ -61,8 +61,8 @@ config :logger, :default_formatter,
 config :phoenix, :json_library, Jason
 
 # Configure Oban
-config :dan_ton, Oban,
-  repo: DanTon.Repo,
+config :dan_core, Oban,
+  repo: DanCore.Repo,
   plugins: [Oban.Plugins.Pruner],
   queues: [default: 10]
 

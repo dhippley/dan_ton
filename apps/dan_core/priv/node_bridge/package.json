@@ -1,0 +1,13 @@
+{
+  "name": "dan-ton-node-bridge",
+  "version": "0.1.0",
+  "description": "Node.js Playwright bridge for dan_ton demo runner",
+  "private": true,
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

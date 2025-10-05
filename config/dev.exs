@@ -1,7 +1,7 @@
 import Config
 
 # Configure your database
-config :dan_ton, DanTon.Repo,
+config :dan_core, DanCore.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
@@ -16,7 +16,7 @@ config :dan_ton, DanTon.Repo,
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :dan_ton, DanTonWeb.Endpoint,
+config :dan_web, DanWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4000")],
@@ -53,18 +53,18 @@ config :dan_ton, DanTonWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :dan_ton, DanTonWeb.Endpoint,
+config :dan_web, DanWeb.Endpoint,
   live_reload: [
     web_console_logger: true,
     patterns: [
-      ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
-      ~r"priv/gettext/.*(po)$",
-      ~r"lib/dan_ton_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
+      ~r"apps/dan_web/priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
+      ~r"apps/dan_web/priv/gettext/.*(po)$",
+      ~r"apps/dan_web/lib/dan_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
     ]
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :dan_ton, dev_routes: true
+config :dan_web, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
