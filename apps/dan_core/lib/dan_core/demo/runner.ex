@@ -128,7 +128,7 @@ defmodule DanCore.Demo.Runner do
           {:ok, _response} ->
             # Give browser a moment to fully initialize
             Process.sleep(1000)
-            
+
             new_state = %{
               state
               | scenario: scenario,
@@ -353,7 +353,7 @@ defmodule DanCore.Demo.Runner do
         filename = if is_binary(params), do: params, else: "screenshot_#{:os.system_time(:second)}.png"
         screenshots_dir = Path.join(File.cwd!(), "screenshots")
         File.mkdir_p!(screenshots_dir)
-        
+
         PlaywrightPort.execute(%{
           action: "take_screenshot",
           params: %{path: filename, fullPath: Path.join(screenshots_dir, filename)}
@@ -371,11 +371,11 @@ defmodule DanCore.Demo.Runner do
         # Narration doesn't interact with browser
         # Optionally trigger TTS here
         text = if is_binary(params), do: params, else: ""
-        
+
         if String.trim(text) != "" do
           DanCore.Speaker.speak(text)
         end
-        
+
         {:ok, %{"status" => "ok", "action" => "narrate", "text" => text}}
 
       _ ->
